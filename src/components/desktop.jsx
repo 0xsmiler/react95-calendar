@@ -11,6 +11,7 @@ import Tunes from "./tunes";
 import About from "./about";
 import Skills from "./skills";
 import Paint from "./paint";
+import CalendarApp from "./calendar";
 import useModal from "./useModal";
 
 function Desktop() {
@@ -22,6 +23,7 @@ function Desktop() {
   const [showCVModal, handleOpenCVModal, handleCloseCVModal] = useModal(false);
   const [showTunesModal, handleOpenTunesModal, handleCloseTunesModal] = useModal(false);
   const [showPaintModal, handleOpenPaintModal, handleClosePaintModal] = useModal(false);
+  const [showCalendarModal, handleOpenCalendarModal, handleCloseCalendarModal] = useModal(false);
 
   const socialMedia = [
     {
@@ -137,6 +139,7 @@ function Desktop() {
         openCV={handleOpenCVModal}
         openTunes={handleOpenTunesModal}
         openPaint={handleOpenPaintModal}
+        openCalendar={handleOpenCalendarModal}
       />
       {showAboutModal && <About closeAboutModal={handleCloseAboutModal} />}
       {showSkillsModal && <Skills closeSkillsModal={handleCloseSkillsModal} />}
@@ -213,6 +216,7 @@ function Desktop() {
       {showCVModal && <CV closeCV={handleCloseCVModal} />}
       {showTunesModal && <Tunes closeTunes={handleCloseTunesModal} />}
       {showPaintModal && <Paint closePaint={handleClosePaintModal} />}
+      {showCalendarModal && <CalendarApp closeCalendarModal={handleCloseCalendarModal} />}
     </>
   );
 }

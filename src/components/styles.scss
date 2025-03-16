@@ -104,3 +104,41 @@ hr {
   top: 0;
   left: 0;
 }
+
+/* Calendar styles */
+.calendar-day-header {
+  font-family: "MS Sans Serif";
+  font-size: 12px;
+  font-weight: bold;
+  padding: 4px;
+  background-color: #c0c0c0;
+  border: 1px solid #868a8e;
+}
+
+.calendar-day {
+  font-family: "MS Sans Serif";
+  font-size: 12px;
+  padding: 6px;
+  border: 1px solid #d4d0c8;
+  cursor: pointer;
+  height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.calendar-day:hover:not(.empty) {
+  background-color: #efefef;
+  border: 1px solid #868a8e;
+}
+
+.calendar-day.selected {
+  background-color: #000080;
+  color: white;
+  border: 1px solid #000080;
+}
+
+.calendar-day.empty {
+  background-color: #d4d0c8;
+  border: 1px solid #d4d0c8;
+}
