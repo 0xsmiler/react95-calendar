@@ -1,19 +1,19 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { List, Frame, Cursor, TaskBar, TitleBar } from "@react95/core";
-import Janne_pixelated from "../assets/janne_pixelated.png";
-import Shortcuts from "./desktopIcons";
-import * as S from "./layoutStyling";
-import "./styles.scss";
+import Janne_pixelated from "./assets/janne_pixelated.png";
+import Shortcuts from "./components/desktopIcons";
+import * as S from "./components/layoutStyling";
+import "./components/styles.scss";
 import { Shell3236, User, CdMusic, Progman34, Textchat, Explorer103, Awfxcg321303 } from "@react95/icons";
-import Portfolio from "./portfolio";
-import CV from "./cv";
-import Tunes from "./tunes";
-import About from "./about";
-import Skills from "./skills";
-import Paint from "./paint";
-import CalendarApp from "./calendar";
-import GoogleAuth from "./googleAuth";
-import useModal from "./useModal";
+import Portfolio from "./components/portfolio";
+import CV from "./components/cv";
+import Tunes from "./components/tunes";
+import About from "./components/about";
+import Skills from "./components/skills";
+import Paint from "./components/paint";
+import CalendarApp from "./components/calendar";
+import GoogleAuth from "./components/googleAuth";
+import useModal from "./components/useModal";
 
 function Desktop() {
   const [showAboutModal, handleOpenAboutModal, handleCloseAboutModal] = useModal(true);
@@ -31,33 +31,11 @@ function Desktop() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
 
-  // Check for stored user session on component mount
-  useEffect(() => {
-    const storedUser = localStorage.getItem('googleUser');
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setIsAuthenticated(true);
-      } catch (error) {
-        console.error("Error parsing stored user data:", error);
-        localStorage.removeItem('googleUser');
-      }
-    }
-  }, []);
-
   // Handle Google Auth success
   const handleAuthSuccess = (userData) => {
-    // Store minimal user info in state
     setUser(userData);
     setIsAuthenticated(true);
-    
-    // Store user in localStorage for persistence
-    localStorage.setItem('googleUser', JSON.stringify(userData));
-    
-    // Close auth modal and open calendar
     handleCloseGoogleAuthModal();
-    handleOpenCalendarModal();
   };
 
   // Handle opening calendar - check if user is authenticated
@@ -71,20 +49,8 @@ function Desktop() {
 
   // Handle logout
   const handleLogout = () => {
-    // Try to sign out from Google if API is loaded
-    if (window.google && window.google.accounts) {
-      try {
-        window.google.accounts.id.disableAutoSelect();
-        console.log('User signed out of Google.');
-      } catch (error) {
-        console.error("Error signing out:", error);
-      }
-    }
-    
-    // Clear local state and storage regardless of Google API state
     setUser(null);
     setIsAuthenticated(false);
-    localStorage.removeItem('googleUser');
   };
 
   const socialMedia = [
@@ -190,7 +156,7 @@ function Desktop() {
                 onClick={handleLogout}
                 className="listLink"
               >
-                Logout {user?.name?.split(' ')[0] || user?.name}
+                Logout {user?.name}
               </List.Item>
             )}
             <List.Divider />
@@ -213,7 +179,6 @@ function Desktop() {
         openCalendar={handleCalendarClick}
         openGoogleAuth={handleOpenGoogleAuthModal}
         isAuthenticated={isAuthenticated}
-        userImage={user?.imageUrl}
       />
       {showAboutModal && <About closeAboutModal={handleCloseAboutModal} />}
       {showSkillsModal && <Skills closeSkillsModal={handleCloseSkillsModal} />}
@@ -290,7 +255,7 @@ function Desktop() {
       {showCVModal && <CV closeCV={handleCloseCVModal} />}
       {showTunesModal && <Tunes closeTunes={handleCloseTunesModal} />}
       {showPaintModal && <Paint closePaint={handleClosePaintModal} />}
-      {showCalendarModal && <CalendarApp closeCalendarModal={handleCloseCalendarModal} user={user} />}
+      {showCalendarModal && <CalendarApp closeCalendarModal={handleCloseCalendarModal} />}
       {showGoogleAuthModal && (
         <GoogleAuth 
           closeGoogleAuthModal={handleCloseGoogleAuthModal} 
@@ -301,4 +266,4 @@ function Desktop() {
   );
 }
 
-export default Desktop;
+export default Desktop; 

@@ -3,14 +3,17 @@ import { TitleBar, Cursor, Button } from "@react95/core";
 import { Explorer103 } from "@react95/icons";
 import * as S from "./layoutStyling";
 
-function CalendarApp({ closeCalendarModal }) {
+function CalendarApp({ closeCalendarModal, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTimeSlot, setSelectedTimeSlot] = useState(null);
   const [showTimeSlots, setShowTimeSlots] = useState(false);
   const [showBookingForm, setShowBookingForm] = useState(false);
   const [showSuccessMessage, setShowSuccessMessage] = useState(false);
-  const [bookingInfo, setBookingInfo] = useState({ name: '', email: '' });
+  const [bookingInfo, setBookingInfo] = useState({ 
+    name: user?.name || '', 
+    email: user?.email || '' 
+  });
   const [emailError, setEmailError] = useState('');
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -22,6 +25,17 @@ function CalendarApp({ closeCalendarModal }) {
     
     return () => clearInterval(timer);
   }, []);
+  
+  // Update form fields when user data changes
+  useEffect(() => {
+    if (user) {
+      setBookingInfo(prev => ({
+        ...prev,
+        name: user.name || prev.name,
+        email: user.email || prev.email
+      }));
+    }
+  }, [user]);
   
   // Email validation function
   const validateEmail = (email) => {
@@ -152,7 +166,8 @@ function CalendarApp({ closeCalendarModal }) {
       date: selectedDate,
       timeSlot: selectedTimeSlot,
       name: bookingInfo.name,
-      email: bookingInfo.email
+      email: bookingInfo.email,
+      userId: user?.id_token || 'anonymous'
     });
     
     // Show success message instead of closing immediately
@@ -362,6 +377,38 @@ function CalendarApp({ closeCalendarModal }) {
           flexDirection: 'column', 
           gap: '15px' 
         }}>
+          {/* User profile info if authenticated */}
+          {user && user.imageUrl && (
+            <div style={{ 
+              display: 'flex', 
+              alignItems: 'center', 
+              marginBottom: '10px',
+              padding: '10px',
+              backgroundColor: '#f0f0f0',
+              border: '1px solid #d4d0c8'
+            }}>
+              <img 
+                src={user.imageUrl} 
+                alt="Profile" 
+                style={{ 
+                  width: 40, 
+                  height: 40, 
+                  borderRadius: '4px',
+                  border: '1px solid #d4d0c8',
+                  marginRight: '10px'
+                }} 
+              />
+              <div>
+                <div style={{ fontFamily: 'MS Sans Serif', fontSize: '12px', fontWeight: 'bold' }}>
+                  Booking as:
+                </div>
+                <div style={{ fontFamily: 'MS Sans Serif', fontSize: '12px' }}>
+                  {user.name}
+                </div>
+              </div>
+            </div>
+          )}
+          
           {/* Name input */}
           <div style={{ display: 'flex', flexDirection: 'column', gap: '5px' }}>
             <label 
