@@ -15,14 +15,16 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
     // Define OAuth 2.0 endpoint
     const oauthEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
     
-    // Define the redirect URI (this should match what's configured in Google Cloud Console)
-    const redirectUri = window.location.origin;
+    // Define the redirect URI (this MUST match what's configured in Google Cloud Console)
+    // Use a specific path to avoid problems with redirect validation
+    const redirectUri = `${window.location.origin}/auth/google/callback`;
+    console.log("Using redirect URI:", redirectUri);
     
     // Define required scopes
     const scope = "email profile";
     
-    // Construct the authorization URL
-    const authUrl = `${oauthEndpoint}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=token&prompt=consent`;
+    // Construct the authorization URL 
+    const authUrl = `${oauthEndpoint}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&prompt=consent`;
     
     // Redirect the browser to the authorization URL
     window.location.href = authUrl;
@@ -51,36 +53,25 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
         return;
       }
       
-      // Log current origin to help with debugging
+      // Log current origin and relevant URIs to help with debugging
       const currentOrigin = window.location.origin;
+      const currentUrl = window.location.href;
+      const specificRedirectUri = `${window.location.origin}/auth/google/callback`;
+      
       console.log("Current origin:", currentOrigin);
-      console.log("Full URL:", window.location.href);
+      console.log("Current full URL:", currentUrl);
+      console.log("Specific redirect URI to add:", specificRedirectUri);
       console.log("Protocol:", window.location.protocol);
       console.log("Hostname:", window.location.hostname);
       console.log("Port:", window.location.port);
-      console.log("Add this origin to Google Cloud Console:", currentOrigin);
       
-      // List all possible origins to try adding to Google Cloud Console
-      const hostname = window.location.hostname;
-      const possibleOrigins = [
-        currentOrigin,
-        `http://${hostname}`,
-        `https://${hostname}`,
-        `http://${hostname}:5173`,
-        `https://${hostname}:5173`,
-        `http://${hostname}:3000`,
-        `https://${hostname}:3000`,
-        `http://localhost`,
-        `https://localhost`,
-        `http://localhost:5173`,
-        `https://localhost:5173`,
-        `http://localhost:3000`,
-        `https://localhost:3000`,
-      ];
-      
-      console.log("Try adding these origins to the Google Cloud Console:");
-      possibleOrigins.forEach(origin => console.log(" - " + origin));
-      console.log("Google Cloud Console > APIs & Services > Credentials > Edit your OAuth 2.0 Client ID");
+      console.log("IMPORTANT: Add these URIs to Google Cloud Console:");
+      console.log("1. Add to Authorized JavaScript Origins:");
+      console.log("   - " + currentOrigin);
+      console.log("2. Add to Authorized Redirect URIs:");
+      console.log("   - " + currentUrl);
+      console.log("   - " + specificRedirectUri);
+      console.log("   - " + currentOrigin + "/");
       
       try {
         window.google.accounts.id.initialize({
@@ -89,10 +80,8 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
           auto_select: false,
           cancel_on_tap_outside: true,
           context: "signin",
-          ux_mode: "redirect",
-          login_uri: window.location.href,
-          debug: true,
-          itp_support: true
+          // Use standard sign-in instead of redirect
+          ux_mode: "popup"
         });
         
         console.log("Google Sign-In initialized successfully");
