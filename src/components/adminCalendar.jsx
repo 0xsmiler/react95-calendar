@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { TitleBar, Button, Tabs, Tab } from "@react95/core";
 import { Explorer103 } from "@react95/icons";
 import * as S from "./layoutStyling";
-import { sendBookingConfirmation } from '../utils/emailService';
 
 function AdminCalendar({ closeAdminCalendarModal }) {
   const [selectedTab, setSelectedTab] = useState(0);
@@ -231,31 +230,12 @@ function AdminCalendar({ closeAdminCalendarModal }) {
   };
   
   // Approve a pending booking
-  const handleApproveBooking = async (bookingId) => {
-    try {
-      const booking = bookings.find(b => b.id === bookingId);
-      if (!booking) return;
-
-      // Update booking status
-      setBookings(bookings.map(booking => 
-        booking.id === bookingId 
-          ? { ...booking, status: "confirmed" } 
-          : booking
-      ));
-
-      // Send confirmation email
-      await sendBookingConfirmation(
-        booking.customerEmail,
-        booking.customerName,
-        formatDateLong(booking.date),
-        booking.timeSlot
-      );
-
-      alert('Booking approved and confirmation email sent successfully!');
-    } catch (error) {
-      console.error('Error approving booking:', error);
-      alert('Error sending confirmation email. Please try again.');
-    }
+  const handleApproveBooking = (bookingId) => {
+    setBookings(bookings.map(booking => 
+      booking.id === bookingId 
+        ? { ...booking, status: "confirmed" } 
+        : booking
+    ));
   };
   
   // Generate calendar days
