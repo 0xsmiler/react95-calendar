@@ -4,7 +4,7 @@ import Janne_pixelated from "../assets/janne_pixelated.png";
 import Shortcuts from "./desktopIcons";
 import * as S from "./layoutStyling";
 import "./styles.scss";
-import { Shell3236, User, CdMusic, Progman34, Textchat, Explorer103, Awfxcg321303 } from "@react95/icons";
+import { Shell3236, User, CdMusic, Progman34, Textchat, Explorer103, Awfxcg321303, Computer2 } from "@react95/icons";
 import Portfolio from "./portfolio";
 import CV from "./cv";
 import Tunes from "./tunes";
@@ -13,6 +13,7 @@ import Skills from "./skills";
 import Paint from "./paint";
 import CalendarApp from "./calendar";
 import GoogleAuth from "./googleAuth";
+import AdminCalendar from "./adminCalendar";
 import useModal from "./useModal";
 
 function Desktop() {
@@ -26,10 +27,12 @@ function Desktop() {
   const [showPaintModal, handleOpenPaintModal, handleClosePaintModal] = useModal(false);
   const [showCalendarModal, handleOpenCalendarModal, handleCloseCalendarModal] = useModal(false);
   const [showGoogleAuthModal, handleOpenGoogleAuthModal, handleCloseGoogleAuthModal] = useModal(false);
+  const [showAdminCalendarModal, handleOpenAdminCalendarModal, handleCloseAdminCalendarModal] = useModal(false);
   
   // Add state for tracking user authentication
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
+  const [isAdmin, setIsAdmin] = useState(false); // Flag to identify admin users
 
   // Check for stored user session on component mount
   useEffect(() => {
@@ -39,6 +42,16 @@ function Desktop() {
         const parsedUser = JSON.parse(storedUser);
         setUser(parsedUser);
         setIsAuthenticated(true);
+        
+        // Check if user is an admin (in a real app, this would be validated on the server)
+        // For now, we'll consider users with specific email domains as admins
+        if (parsedUser.email && (
+          parsedUser.email === 'alex@example.com' || 
+          parsedUser.email === 'cryptodemon.eng@gmail.com' ||
+          parsedUser.email.endsWith('@admin.com')
+        )) {
+          setIsAdmin(true);
+        }
       } catch (error) {
         console.error("Error parsing stored user data:", error);
         localStorage.removeItem('googleUser');
@@ -51,6 +64,15 @@ function Desktop() {
     // Store minimal user info in state
     setUser(userData);
     setIsAuthenticated(true);
+    
+    // Check if user is an admin
+    if (userData.email && (
+      userData.email === 'aWittman.c@gmail.com' || 
+      userData.email === 'cryptodemon.eng@gmail.com' ||
+      userData.email.endsWith('@admin.com')
+    )) {
+      setIsAdmin(true);
+    }
     
     // Store user in localStorage for persistence
     localStorage.setItem('googleUser', JSON.stringify(userData));
@@ -66,6 +88,19 @@ function Desktop() {
       handleOpenCalendarModal();
     } else {
       handleOpenGoogleAuthModal();
+    }
+  };
+  
+  // Handle admin calendar click - only accessible to admins
+  const handleAdminCalendarClick = () => {
+    if (isAdmin) {
+      handleOpenAdminCalendarModal();
+    } else {
+      // For non-admin users, show a message or prompt login
+      alert("You need admin access to use this feature.");
+      if (!isAuthenticated) {
+        handleOpenGoogleAuthModal();
+      }
     }
   };
 
@@ -84,6 +119,7 @@ function Desktop() {
     // Clear local state and storage regardless of Google API state
     setUser(null);
     setIsAuthenticated(false);
+    setIsAdmin(false);
     localStorage.removeItem('googleUser');
   };
 
@@ -184,6 +220,22 @@ function Desktop() {
             >
               Skills
             </List.Item>
+            <List.Item
+              icon={<Explorer103 variant="32x32_4" />}
+              onClick={handleCalendarClick}
+              className="listLink"
+            >
+              Book Calendar
+            </List.Item>
+            {isAdmin && (
+              <List.Item
+                icon={<Computer2 variant="32x32_4" />}
+                onClick={handleAdminCalendarClick}
+                className="listLink"
+              >
+                Admin Calendar
+              </List.Item>
+            )}
             {isAuthenticated && (
               <List.Item
                 icon={<User variant="32x32_4" />}
@@ -212,7 +264,9 @@ function Desktop() {
         openPaint={handleOpenPaintModal}
         openCalendar={handleCalendarClick}
         openGoogleAuth={handleOpenGoogleAuthModal}
+        openAdminCalendar={handleAdminCalendarClick}
         isAuthenticated={isAuthenticated}
+        isAdmin={isAdmin}
         userImage={user?.imageUrl}
       />
       {showAboutModal && <About closeAboutModal={handleCloseAboutModal} />}
@@ -296,6 +350,9 @@ function Desktop() {
           closeGoogleAuthModal={handleCloseGoogleAuthModal} 
           onAuthSuccess={handleAuthSuccess} 
         />
+      )}
+      {showAdminCalendarModal && (
+        <AdminCalendar closeAdminCalendarModal={handleCloseAdminCalendarModal} />
       )}
     </>
   );

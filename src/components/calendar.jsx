@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { TitleBar, Cursor, Button } from "@react95/core";
 import { Explorer103 } from "@react95/icons";
 import * as S from "./layoutStyling";
+import { sendRequestConfirmation } from '../utils/emailService';
 
 function CalendarApp({ closeCalendarModal, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -160,23 +161,50 @@ function CalendarApp({ closeCalendarModal, user }) {
   };
   
   // Handle form submission
-  const handleSubmitBooking = () => {
-    // Here you would typically send the booking data to your backend
-    console.log('Booking submitted:', {
-      date: selectedDate,
-      timeSlot: selectedTimeSlot,
-      name: bookingInfo.name,
-      email: bookingInfo.email,
-      userId: user?.id_token || 'anonymous'
-    });
-    
-    // Show success message instead of closing immediately
-    setShowSuccessMessage(true);
-    
-    // Auto-close after 30 seconds
-    setTimeout(() => {
-      closeCalendarModal();
-    }, 30000);
+  const handleSubmitBooking = async () => {
+    try {
+      // Validate form before proceeding
+      if (!bookingInfo.name || !bookingInfo.email || emailError) {
+        alert('Please fill in all fields correctly before submitting.');
+        return;
+      }
+
+      // Check if user is authenticated
+      if (!user || !user.id_token) {
+        alert('Please sign in with Google to make a booking.');
+        return;
+      }
+
+      console.log("User data for email:", user);
+
+      // Send initial request confirmation email
+      await sendRequestConfirmation(
+        bookingInfo.email,
+        bookingInfo.name,
+        formatDateWithDay(selectedDate),
+        selectedTimeSlot.time,
+        user.access_token // Pass the access token
+      );
+
+      // Show success message
+      setShowSuccessMessage(true);
+      
+      // Auto-close after 30 seconds
+      setTimeout(() => {
+        closeCalendarModal();
+      }, 30000);
+    } catch (error) {
+      console.error('Error sending booking request:', error);
+      
+      // Check if the error is due to authentication
+      if (error.message.includes('No access token provided') || 
+          error.message.includes('Failed to initialize Gmail API') ||
+          error.status === 401) {
+        alert('Please sign in with Google to make a booking. Your session may have expired.');
+      } else {
+        alert('Unable to send booking request at this time. Please try again later or contact support.');
+      }
+    }
   };
   
   // Generate calendar days

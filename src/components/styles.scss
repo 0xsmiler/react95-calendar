@@ -125,6 +125,23 @@ hr {
   display: flex;
   align-items: center;
   justify-content: center;
+
+  &.has-bookings {
+    background-color: #b3d4fc;
+    font-weight: bold;
+    position: relative;
+    
+    &:after {
+      content: "";
+      position: absolute;
+      top: 2px;
+      right: 2px;
+      width: 5px;
+      height: 5px;
+      background-color: #0000ff;
+      border-radius: 50%;
+    }
+  }
 }
 
 .calendar-day:hover:not(.empty) {

@@ -9,26 +9,26 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
   const [scriptLoaded, setScriptLoaded] = useState(false);
 
   // Function to handle the response from Google Sign-In
-  const handleCredentialResponse = (response) => {
+  const handleCredentialResponse = async (response) => {
     setIsLoading(true);
     
     try {
-      // The response contains a JWT credential
+      // Decode the JWT credential
       const credential = response.credential;
-      
-      // Decode the JWT to get user information
-      // Note: In a production app, you'd verify this token on your backend
       const payload = JSON.parse(atob(credential.split('.')[1]));
       
       const userData = {
         name: payload.name,
         email: payload.email,
         imageUrl: payload.picture,
-        id_token: credential
+        id_token: credential,
+        // For demo purposes, we're setting a dummy access token since we're mocking email sending
+        access_token: 'mock_access_token'
       };
       
       // Pass the authenticated user back to the parent component
       onAuthSuccess(userData);
+      setIsLoading(false);
       
     } catch (error) {
       setError("Failed to process sign-in. Please try again.");
@@ -45,7 +45,7 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
       window.google.accounts.id.initialize({
         client_id: '923049542027-0ojfrq1ifif3l86dmn2382a9c7gdqnf4.apps.googleusercontent.com',
         callback: handleCredentialResponse,
-        auto_select: false, 
+        auto_select: false,
         cancel_on_tap_outside: true
       });
       
@@ -53,13 +53,10 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
       window.google.accounts.id.renderButton(
         document.getElementById('google-signin-button'),
         { 
-          type: 'standard', 
-          theme: 'outline', 
+          type: 'standard',
+          theme: 'outline',
           size: 'large',
-          text: 'signin_with',
-          shape: 'rectangular',
-          logo_alignment: 'left',
-          width: 250
+          text: 'signin_with'
         }
       );
     } catch (error) {
@@ -89,10 +86,13 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
       setError("Failed to load Google authentication. Please try again later.");
     };
     
-    document.body.appendChild(script);
+    document.head.appendChild(script);
     
     return () => {
-      // Cleanup is optional, generally not needed to remove the script
+      const scriptElement = document.getElementById('google-identity-script');
+      if (scriptElement) {
+        document.head.removeChild(scriptElement);
+      }
     };
   }, [scriptLoaded]);
 
@@ -132,6 +132,18 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
               Please sign in to access the calendar
             </div>
           </div>
+          
+          {/* Loading indicator */}
+          {isLoading && (
+            <div style={{
+              fontFamily: 'MS Sans Serif',
+              fontSize: '12px',
+              textAlign: 'center',
+              marginBottom: '10px'
+            }}>
+              Loading, please wait...
+            </div>
+          )}
           
           {/* Google Sign-In Button will be rendered here */}
           <div style={{ 
