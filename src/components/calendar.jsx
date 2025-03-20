@@ -161,13 +161,21 @@ function CalendarApp({ closeCalendarModal, user }) {
   
   // Handle form submission
   const handleSubmitBooking = () => {
+    // Extract time from the time slot string (format: "HH:00 - HH:00")
+    const startTime = selectedTimeSlot.time.split(' - ')[0];
+    const [hours, minutes] = startTime.split(':').map(num => parseInt(num, 10));
+    
+    // Create a new date object with the combined date and time
+    const bookingDateTime = new Date(selectedDate);
+    bookingDateTime.setHours(hours, minutes, 0, 0);
+    
     // Here you would typically send the booking data to your backend
     console.log('Booking submitted:', {
-      date: selectedDate,
+      date: bookingDateTime,
       timeSlot: selectedTimeSlot,
       name: bookingInfo.name,
       email: bookingInfo.email,
-      userId: user?.id_token || 'anonymous'
+      userId: user?.id || 'anonymous'
     });
     
     // Show success message instead of closing immediately
