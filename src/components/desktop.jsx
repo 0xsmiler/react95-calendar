@@ -344,7 +344,12 @@ function Desktop() {
       {showCVModal && <CV closeCV={handleCloseCVModal} />}
       {showTunesModal && <Tunes closeTunes={handleCloseTunesModal} />}
       {showPaintModal && <Paint closePaint={handleClosePaintModal} />}
-      {showCalendarModal && <CalendarApp closeCalendarModal={handleCloseCalendarModal} user={user} />}
+      {showCalendarModal && (
+        <CalendarApp 
+          closeCalendarModal={handleCloseCalendarModal} 
+          user={user} 
+        />
+      )}
       {showGoogleAuthModal && (
         <GoogleAuth 
           closeGoogleAuthModal={handleCloseGoogleAuthModal} 
@@ -352,7 +357,10 @@ function Desktop() {
         />
       )}
       {showAdminCalendarModal && (
-        <AdminCalendar closeAdminCalendarModal={handleCloseAdminCalendarModal} />
+        <AdminCalendar 
+          closeAdminCalendarModal={handleCloseAdminCalendarModal} 
+          user={user}
+        />
       )}
     </>
   );

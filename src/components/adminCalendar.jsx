@@ -2,8 +2,9 @@ import React, { useState, useEffect } from "react";
 import { TitleBar, Button, Tabs, Tab } from "@react95/core";
 import { Explorer103 } from "@react95/icons";
 import * as S from "./layoutStyling";
+import { getBookings, getUserBookings, updateBookingStatus, formatBookingDate, ADMIN_EMAIL } from "../services/bookingService";
 
-function AdminCalendar({ closeAdminCalendarModal }) {
+function AdminCalendar({ closeAdminCalendarModal, user }) {
   const [selectedTab, setSelectedTab] = useState(0);
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(null);
@@ -14,6 +15,8 @@ function AdminCalendar({ closeAdminCalendarModal }) {
     { id: 4, time: "16:00 - 17:00", available: true }
   ]);
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [bookings, setBookings] = useState([]);
+  const [isAdmin, setIsAdmin] = useState(false);
   
   // New state for weekly availability
   const [weeklyAvailability, setWeeklyAvailability] = useState([
@@ -29,33 +32,44 @@ function AdminCalendar({ closeAdminCalendarModal }) {
   // State to track which settings view is active
   const [availabilityView, setAvailabilityView] = useState('weekly'); // 'weekly' or 'specific'
   
-  // Mock bookings data (in a real app, this would come from a database)
-  const [bookings, setBookings] = useState([
-    {
-      id: 1,
-      customerName: "John Doe",
-      customerEmail: "john@example.com",
-      date: new Date(2023, 6, 15),  // July 15, 2023
-      timeSlot: "09:00 - 10:00",
-      status: "confirmed"
-    },
-    {
-      id: 2,
-      customerName: "Jane Smith",
-      customerEmail: "jane@example.com",
-      date: new Date(2023, 6, 16),  // July 16, 2023
-      timeSlot: "14:00 - 15:00",
-      status: "confirmed"
-    },
-    {
-      id: 3,
-      customerName: "Bob Johnson",
-      customerEmail: "bob@example.com",
-      date: new Date(2023, 6, 18),  // July 18, 2023
-      timeSlot: "11:00 - 12:00",
-      status: "pending"
+  // Check if user is admin and load bookings
+  useEffect(() => {
+    // Check if the current user is the admin
+    if (user && user.email === ADMIN_EMAIL) {
+      setIsAdmin(true);
     }
-  ]);
+    
+    // Load bookings based on user role
+    loadBookings();
+    
+    // Set up refresh interval for bookings (every minute)
+    const refreshInterval = setInterval(loadBookings, 60000);
+    
+    return () => clearInterval(refreshInterval);
+  }, [user]);
+  
+  // Load bookings from service
+  const loadBookings = () => {
+    try {
+      let userBookings = [];
+      
+      if (user) {
+        // If user is admin, get all bookings, otherwise get only this user's bookings
+        userBookings = getUserBookings(user.email);
+      }
+      
+      // Convert date strings to Date objects
+      userBookings = userBookings.map(booking => ({
+        ...booking,
+        date: new Date(booking.date)
+      }));
+      
+      setBookings(userBookings);
+      console.log("Loaded bookings:", userBookings);
+    } catch (error) {
+      console.error("Error loading bookings:", error);
+    }
+  };
   
   // Update current time every minute
   useEffect(() => {
@@ -224,18 +238,31 @@ function AdminCalendar({ closeAdminCalendarModal }) {
   // Handle canceling a booking
   const handleCancelBooking = (bookingId) => {
     if (window.confirm("Are you sure you want to cancel this booking?")) {
-      // In a real app, this would send a request to your backend
-      setBookings(bookings.filter(booking => booking.id !== bookingId));
+      try {
+        const success = updateBookingStatus(bookingId, "cancelled");
+        if (success) {
+          // Refresh bookings
+          loadBookings();
+        }
+      } catch (error) {
+        console.error("Error cancelling booking:", error);
+        alert("Failed to cancel booking. Please try again.");
+      }
     }
   };
   
   // Approve a pending booking
   const handleApproveBooking = (bookingId) => {
-    setBookings(bookings.map(booking => 
-      booking.id === bookingId 
-        ? { ...booking, status: "confirmed" } 
-        : booking
-    ));
+    try {
+      const success = updateBookingStatus(bookingId, "confirmed");
+      if (success) {
+        // Refresh bookings
+        loadBookings();
+      }
+    } catch (error) {
+      console.error("Error approving booking:", error);
+      alert("Failed to approve booking. Please try again.");
+    }
   };
   
   // Generate calendar days
@@ -615,41 +642,53 @@ function AdminCalendar({ closeAdminCalendarModal }) {
   
   // Render the bookings tab
   const renderBookingsTab = () => {
-    // Group bookings by date for easier display
+    // Process bookings into date groups
     const bookingsByDate = {};
-    bookings.forEach(booking => {
-      const dateKey = formatDate(booking.date);
-      if (!bookingsByDate[dateKey]) {
-        bookingsByDate[dateKey] = [];
+    
+    // Only show pending and confirmed bookings (not cancelled)
+    const activeBookings = bookings.filter(booking => 
+      booking.status === 'pending' || booking.status === 'confirmed'
+    );
+    
+    // Group bookings by date
+    activeBookings.forEach(booking => {
+      const dateStr = booking.date.toDateString();
+      if (!bookingsByDate[dateStr]) {
+        bookingsByDate[dateStr] = [];
       }
-      bookingsByDate[dateKey].push(booking);
+      bookingsByDate[dateStr].push(booking);
     });
     
-    // Sort dates
-    const sortedDates = Object.keys(bookingsByDate).sort((a, b) => {
-      const dateA = new Date(a);
-      const dateB = new Date(b);
-      return dateA - dateB;
-    });
+    // Sort dates chronologically
+    const sortedDates = Object.keys(bookingsByDate).sort((a, b) => 
+      new Date(a) - new Date(b)
+    );
     
     return (
-      <div style={{ padding: '10px' }}>
+      <div style={{ 
+        padding: '10px',
+        fontFamily: 'MS Sans Serif',
+        fontSize: '12px',
+        maxHeight: '400px',
+        overflowY: 'auto'
+      }}>
         <div style={{ 
-          fontSize: '14px', 
-          fontWeight: 'bold',
-          marginBottom: '15px'
+          fontWeight: 'bold', 
+          marginBottom: '15px',
+          fontSize: '14px',
+          color: '#000080'
         }}>
-          Upcoming Bookings ({bookings.length})
+          Upcoming Bookings
         </div>
         
-        {bookings.length === 0 ? (
+        {activeBookings.length === 0 ? (
           <div style={{ 
             padding: '20px', 
             textAlign: 'center',
             backgroundColor: '#f0f0f0',
             border: '1px solid #d4d0c8'
           }}>
-            No bookings found.
+            No bookings found
           </div>
         ) : (
           sortedDates.map(date => (
@@ -680,7 +719,7 @@ function AdminCalendar({ closeAdminCalendarModal }) {
                     justifyContent: 'space-between',
                     marginBottom: '5px'
                   }}>
-                    <div style={{ fontWeight: 'bold' }}>{booking.timeSlot}</div>
+                    <div style={{ fontWeight: 'bold' }}>{booking.timeSlot.time}</div>
                     <div style={{ 
                       fontSize: '11px',
                       padding: '1px 5px',
@@ -692,10 +731,13 @@ function AdminCalendar({ closeAdminCalendarModal }) {
                   </div>
                   
                   <div style={{ fontSize: '12px', marginBottom: '3px' }}>
-                    <strong>Name:</strong> {booking.customerName}
+                    <strong>Name:</strong> {booking.name}
+                  </div>
+                  <div style={{ fontSize: '12px', marginBottom: '3px' }}>
+                    <strong>Email:</strong> {booking.email}
                   </div>
                   <div style={{ fontSize: '12px', marginBottom: '10px' }}>
-                    <strong>Email:</strong> {booking.customerEmail}
+                    <strong>Meeting:</strong> {booking.meetingType || '60 min with Alex'}
                   </div>
                   
                   <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '5px' }}>

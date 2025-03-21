@@ -5,33 +5,84 @@ import * as S from "./layoutStyling";
 function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
   const [error, setError] = useState(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
-  const [tryDirectMethod, setTryDirectMethod] = useState(false);
+  const [user, setUser] = useState(null);
+  const [fedCMDisabled, setFedCMDisabled] = useState(false);
   
-  // Function to handle direct login redirect (alternative method)
-  const handleDirectGoogleLogin = () => {
+  // We're keeping the function for potential future use
+  const handleSignInWithGoogle = () => {
+    if (!window.google || !window.google.accounts) {
+      setError("Google Sign-In API not loaded yet. Please try again in a moment.");
+      return;
+    }
+    
+    try {
+      window.google.accounts.id.prompt();
+      console.log("Google One Tap prompt initiated");
+    } catch (err) {
+      console.error("Error with Google One Tap:", err);
+      setError("Could not initiate sign-in. Please try the Sign-In button instead.");
+    }
+  };
+  
+  // Direct login method as fallback
+  const handleDirectLogin = () => {
     // Get the client ID from your configuration
     const clientId = "859727566663-25k9u7if8dftsl5o5qicoh8560eg42oa.apps.googleusercontent.com";
     
-    // Define OAuth 2.0 endpoint
-    const oauthEndpoint = "https://accounts.google.com/o/oauth2/v2/auth";
-    
-    // Define the redirect URI (this MUST match what's configured in Google Cloud Console)
-    // Use a specific path to avoid problems with redirect validation
-    const redirectUri = `${window.location.origin}/auth/google/callback`;
-    console.log("Using redirect URI:", redirectUri);
-    
-    // Define required scopes
+    // Define required scopes and parameters
     const scope = "email profile";
+    const redirectUri = window.location.origin;
     
-    // Construct the authorization URL 
-    const authUrl = `${oauthEndpoint}?client_id=${encodeURIComponent(clientId)}&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scope)}&response_type=code&prompt=consent`;
+    // Open sign-in in a popup window
+    const width = 500;
+    const height = 600;
+    const left = (window.screen.width - width) / 2;
+    const top = (window.screen.height - height) / 2;
     
-    // Redirect the browser to the authorization URL
-    window.location.href = authUrl;
+    const authUrl = `https://accounts.google.com/o/oauth2/v2/auth?client_id=${clientId}&redirect_uri=${redirectUri}&response_type=token&scope=${scope}&prompt=select_account`;
+    
+    const popup = window.open(
+      authUrl,
+      'googleSignIn',
+      `width=${width},height=${height},left=${left},top=${top}`
+    );
+    
+    // Check for popup blocker
+    if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+      setError("Popup was blocked by your browser. Please allow popups for this site.");
+      return;
+    }
+    
+    // Listen for message from popup
+    window.addEventListener('message', function(event) {
+      if (event.origin !== window.location.origin) return;
+      
+      if (event.data && event.data.type === 'google-auth') {
+        const userData = event.data.user;
+        setUser(userData);
+        onAuthSuccess(userData);
+        popup.close();
+      }
+    }, false);
   };
   
   useEffect(() => {
     console.log("GoogleAuth component mounted");
+    
+    // Add listener for FedCM errors
+    const handleFedCMError = (event) => {
+      if (event.message && (
+          event.message.includes("FedCM was disabled") || 
+          event.message.includes("NetworkError") ||
+          event.message.includes("FedCM get() rejects")
+        )) {
+        console.log("FedCM error detected:", event.message);
+        setFedCMDisabled(true);
+      }
+    };
+    
+    window.addEventListener('error', handleFedCMError);
+    window.addEventListener('unhandledrejection', handleFedCMError);
     
     // Load the Google Sign-In script
     const script = document.createElement("script");
@@ -44,7 +95,6 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
       setScriptLoaded(true);
       
       // Verify the client ID format before initializing
-      // IMPORTANT: Replace this with your actual client ID from Google Cloud Console
       const clientId = "859727566663-25k9u7if8dftsl5o5qicoh8560eg42oa.apps.googleusercontent.com";
       console.log("Using Client ID:", clientId);
       
@@ -53,57 +103,51 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
         return;
       }
       
-      // Log current origin and relevant URIs to help with debugging
-      const currentOrigin = window.location.origin;
-      const currentUrl = window.location.href;
-      const specificRedirectUri = `${window.location.origin}/auth/google/callback`;
-      
-      console.log("Current origin:", currentOrigin);
-      console.log("Current full URL:", currentUrl);
-      console.log("Specific redirect URI to add:", specificRedirectUri);
-      console.log("Protocol:", window.location.protocol);
-      console.log("Hostname:", window.location.hostname);
-      console.log("Port:", window.location.port);
-      
-      console.log("IMPORTANT: Add these URIs to Google Cloud Console:");
-      console.log("1. Add to Authorized JavaScript Origins:");
-      console.log("   - " + currentOrigin);
-      console.log("2. Add to Authorized Redirect URIs:");
-      console.log("   - " + currentUrl);
-      console.log("   - " + specificRedirectUri);
-      console.log("   - " + currentOrigin + "/");
+      // Log current origin info for debugging
+      console.log("Current origin:", window.location.origin);
+      console.log("Current URL:", window.location.href);
       
       try {
+        // Initialize Google Sign-In - simpler configuration
         window.google.accounts.id.initialize({
           client_id: clientId,
           callback: handleCredentialResponse,
           auto_select: false,
           cancel_on_tap_outside: true,
-          context: "signin",
-          // Use standard sign-in instead of redirect
-          ux_mode: "popup"
+          // Add FedCM related options
+          use_fedcm_for_prompt: false // Try to avoid FedCM for prompt
         });
         
         console.log("Google Sign-In initialized successfully");
         
+        // Customize the One Tap UI (optional)
+        window.google.accounts.id.prompt((notification) => {
+          if (notification.isNotDisplayed()) {
+            console.log("One Tap UI not displayed:", notification.getNotDisplayedReason());
+            // Check for FedCM related issues
+            if (notification.getNotDisplayedReason() === "credential_returned" || 
+                notification.getNotDisplayedReason() === "browser_not_supported" ||
+                notification.getNotDisplayedReason() === "api_disabled") {
+              setFedCMDisabled(true);
+            }
+          } else if (notification.isSkippedMoment()) {
+            console.log("One Tap UI skipped:", notification.getSkippedReason());
+          } else {
+            console.log("One Tap UI displayed");
+          }
+        });
+        
+        // Render standard button
         const buttonElement = document.getElementById("googleSignInDiv");
         if (buttonElement) {
-          window.google.accounts.id.renderButton(
-            buttonElement,
-            { 
-              type: "standard",
-              theme: "outline", 
-              size: "large", 
-              text: "signin_with",
-              shape: "rectangular",
-              logo_alignment: "left",
-              width: 250
-            }
-          );
+          window.google.accounts.id.renderButton(buttonElement, {
+            type: "standard",
+            theme: "outline",
+            size: "large",
+            text: "signin_with",
+            width: 250
+          });
           console.log("Google Sign-In button rendered");
-        } else {
-          console.error("Google Sign-In button container not found");
-          setError("Button container not found");
         }
       } catch (err) {
         console.error("Error initializing Google Sign-In:", err);
@@ -122,6 +166,8 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
       if (document.head.contains(script)) {
         document.head.removeChild(script);
       }
+      window.removeEventListener('error', handleFedCMError);
+      window.removeEventListener('unhandledrejection', handleFedCMError);
     };
   }, []);
 
@@ -148,6 +194,7 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
           id: payload.sub
         };
 
+        setUser(userData);
         // Call the success handler with the user data
         console.log("Authentication successful:", userData);
         onAuthSuccess(userData);
@@ -199,14 +246,48 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
               padding: "10px",
               marginBottom: "15px",
               fontFamily: "MS Sans Serif",
-              fontSize: "12px",
+              fontSize: "12px", 
               color: "#cc0000"
             }}>
               Error: {error}
             </div>
           )}
 
+          {fedCMDisabled && (
+            <div style={{
+              border: "1px solid #ff9900",
+              backgroundColor: "#ffffee",
+              padding: "10px",
+              marginBottom: "15px",
+              fontFamily: "MS Sans Serif",
+              fontSize: "12px",
+              color: "#663300"
+            }}>
+              Note: Federated sign-in appears to be disabled in your browser settings. 
+              You may need to enable FedCM in your browser settings or try using the button below.
+            </div>
+          )}
+
+          {/* This div is for the Google button */}
           <div id="googleSignInDiv" style={{ marginBottom: "20px" }}></div>
+          
+          {fedCMDisabled && (
+            <div style={{ marginBottom: "20px", textAlign: "center" }}>
+              <Button 
+                onClick={handleDirectLogin}
+                style={{
+                  fontFamily: "MS Sans Serif",
+                  fontSize: "12px",
+                  padding: "4px 10px", 
+                  cursor: "pointer",
+                  width: "80%",
+                  margin: "0 auto"
+                }}
+              >
+                Alternative Google Sign-In
+              </Button>
+            </div>
+          )}
           
           {!scriptLoaded && (
             <div style={{
@@ -216,31 +297,6 @@ function GoogleAuth({ closeGoogleAuthModal, onAuthSuccess }) {
               fontSize: "12px"
             }}>
               Loading Google Sign-In...
-            </div>
-          )}
-          
-          {error && (
-            <div style={{ marginBottom: "20px", textAlign: "center" }}>
-              <p style={{ 
-                fontFamily: "MS Sans Serif", 
-                fontSize: "12px", 
-                color: "#666",
-                marginBottom: "10px"
-              }}>
-                Having trouble? Try the direct method:
-              </p>
-              <Button 
-                onClick={handleDirectGoogleLogin}
-                style={{
-                  fontFamily: "MS Sans Serif",
-                  fontSize: "12px",
-                  padding: "4px 10px", 
-                  cursor: "pointer",
-                  width: "100%"
-                }}
-              >
-                Direct Google Login
-              </Button>
             </div>
           )}
 

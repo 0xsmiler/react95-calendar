@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { TitleBar, Cursor, Button } from "@react95/core";
 import { Explorer103 } from "@react95/icons";
 import * as S from "./layoutStyling";
+import { saveBooking, isTimeSlotAvailable } from "../services/bookingService";
 
 function CalendarApp({ closeCalendarModal, user }) {
   const [currentDate, setCurrentDate] = useState(new Date());
@@ -44,12 +45,25 @@ function CalendarApp({ closeCalendarModal, user }) {
   };
   
   // Mock time slots (4 slots per day)
-  const timeSlots = [
+  const [availableTimeSlots, setAvailableTimeSlots] = useState([
     { id: 1, time: "09:00 - 10:00", available: true },
     { id: 2, time: "11:00 - 12:00", available: true },
     { id: 3, time: "14:00 - 15:00", available: true },
     { id: 4, time: "16:00 - 17:00", available: true }
-  ];
+  ]);
+  
+  // Check availability when date changes
+  useEffect(() => {
+    if (selectedDate) {
+      // Check which time slots are available for this date
+      const updatedTimeSlots = availableTimeSlots.map(slot => ({
+        ...slot,
+        available: isTimeSlotAvailable(selectedDate, slot)
+      }));
+      
+      setAvailableTimeSlots(updatedTimeSlots);
+    }
+  }, [selectedDate]);
   
   // Helper functions for calendar
   const getDaysInMonth = (year, month) => new Date(year, month + 1, 0).getDate();
@@ -169,22 +183,34 @@ function CalendarApp({ closeCalendarModal, user }) {
     const bookingDateTime = new Date(selectedDate);
     bookingDateTime.setHours(hours, minutes, 0, 0);
     
-    // Here you would typically send the booking data to your backend
-    console.log('Booking submitted:', {
+    // Create booking data
+    const bookingData = {
       date: bookingDateTime,
       timeSlot: selectedTimeSlot,
       name: bookingInfo.name,
       email: bookingInfo.email,
-      userId: user?.id || 'anonymous'
-    });
+      userId: user?.id || 'anonymous',
+      notes: bookingInfo.notes || '',
+      meetingType: '60 min with Alex'
+    };
     
-    // Show success message instead of closing immediately
-    setShowSuccessMessage(true);
-    
-    // Auto-close after 30 seconds
-    setTimeout(() => {
-      closeCalendarModal();
-    }, 30000);
+    try {
+      // Save booking to our service
+      const savedBooking = saveBooking(bookingData);
+      console.log('Booking submitted successfully:', savedBooking);
+      
+      // Show success message
+      setShowSuccessMessage(true);
+      
+      // Auto-close after 30 seconds
+      setTimeout(() => {
+        closeCalendarModal();
+      }, 30000);
+      
+    } catch (error) {
+      console.error('Error submitting booking:', error);
+      setError('Failed to save your booking. Please try again.');
+    }
   };
   
   // Generate calendar days
@@ -305,39 +331,53 @@ function CalendarApp({ closeCalendarModal, user }) {
         {/* Title and date info */}
         {renderHeaderContent()}
         
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(1, 1fr)', gap: '10px' }}>
-          {timeSlots.map(slot => (
+        <div style={{ 
+          display: 'flex', 
+          flexDirection: 'column', 
+          gap: '10px' 
+        }}>
+          <div style={{ 
+            fontFamily: 'MS Sans Serif',
+            fontSize: '12px',
+            marginBottom: '10px'
+          }}>
+            Please select a time slot:
+          </div>
+          
+          {availableTimeSlots.map((slot) => (
             <div 
               key={slot.id}
-              onClick={() => handleTimeSlotClick(slot)}
-              className={`time-slot ${selectedTimeSlot && selectedTimeSlot.id === slot.id ? 'selected' : ''}`}
-              style={{
-                padding: '10px',
-                border: selectedTimeSlot && selectedTimeSlot.id === slot.id 
-                  ? '2px solid #000080' 
-                  : '2px outset #d4d0c8',
-                backgroundColor: selectedTimeSlot && selectedTimeSlot.id === slot.id 
-                  ? '#000080' 
-                  : '#d4d0c8',
-                color: selectedTimeSlot && selectedTimeSlot.id === slot.id 
-                  ? 'white' 
-                  : 'black',
+              onClick={() => slot.available ? handleTimeSlotClick(slot) : null}
+              style={{ 
+                padding: '8px 12px',
+                border: slot.id === selectedTimeSlot?.id ? '2px solid #000080' : '1px solid #d4d0c8',
+                backgroundColor: !slot.available ? '#e0e0e0' : 
+                               slot.id === selectedTimeSlot?.id ? '#e6f0ff' : 'white',
+                cursor: slot.available ? 'pointer' : 'not-allowed',
                 fontFamily: 'MS Sans Serif',
                 fontSize: '12px',
-                textAlign: 'center',
-                cursor: 'pointer'
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                opacity: slot.available ? 1 : 0.6
               }}
             >
-              {slot.time}
+              <span>{slot.time}</span>
+              <span style={{ 
+                fontSize: '10px',
+                color: slot.available ? '#008000' : '#FF0000',
+                fontWeight: 'bold'
+              }}>
+                {slot.available ? 'Available' : 'Booked'}
+              </span>
             </div>
           ))}
         </div>
         
         <div style={{ 
-          marginTop: '20px', 
           display: 'flex', 
-          justifyContent: 'flex-end',
-          gap: '10px'
+          justifyContent: 'space-between',
+          marginTop: '20px'
         }}>
           <Button 
             onClick={handleBackToCalendar}
